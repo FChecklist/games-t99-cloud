@@ -1,0 +1,80 @@
+name: t99 cloud sampling
+# Runs the existing TARGET-99 live-game runner (live/t99.mjs) from GitHub's cloud machines instead of the owner's laptops.
+# No AI model is called: plain scripts, zero API credit. Each job = one cloud machine ("cloudN") with its own ledger, uploaded as an artifact.
+# Safety: the real-customer-game gate (tools/live_games_now*.py via live/gate-watch.mjs) runs every 5 minutes; run.mjs refuses to start a game when a real customer game is running.
+on:
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "game types, comma separated (tambola,bingo,snakes,luck,luckydraw,tictactoe)"
+        default: "tambola"
+      jobs:
+        description: "how many cloud machines (1 to 8)"
+        default: "1"
+      hours:
+        description: "hours each machine samples (1 to 5)"
+        default: "5"
+      workers:
+        description: "parallel games per machine"
+        default: "12"
+      per_site:
+        description: "max parallel games per site per machine"
+        default: "12"
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    if: ${{ fromJSON(inputs.jobs) >= matrix.n }}
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4, 5, 6, 7, 8]
+    env:
+      X_RUNNER_KEY: ${{ secrets.X_RUNNER_KEY }}
+      CLOUDFLARE_D1_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OWNER_KEY_TAMBOLA: ${{ secrets.OWNER_KEY_TAMBOLA }}
+      OWNER_KEY_BINGO: ${{ secrets.OWNER_KEY_BINGO }}
+      OWNER_KEY_TICTACTOE: ${{ secrets.OWNER_KEY_TICTACTOE }}
+      OWNER_KEY_SNAKES: ${{ secrets.OWNER_KEY_SNAKES }}
+      OWNER_KEY_LUCK: ${{ secrets.OWNER_KEY_LUCK }}
+      OWNER_KEY_LUCKYDRAW: ${{ secrets.OWNER_KEY_LUCKYDRAW }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.2"
+      - name: Check that the required secrets exist (never prints them)
+        run: |
+          for v in X_RUNNER_KEY CLOUDFLARE_D1_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!v}" ]; then echo "::error::secret $v is not set in this repository"; exit 1; fi
+          done
+      - name: Start the real-customer-game gate (refreshes every 5 minutes)
+        run: |
+          nohup bun live/gate-watch.mjs --every 300 --hours 3 --out live/gate-status.json > gate.log 2>&1 &
+          for i in $(seq 1 30); do [ -s live/gate-status.json ] && break; sleep 5; done
+          test -s live/gate-status.json || { echo "::error::gate file was not written"; cat gate.log | sed 's/[A-Za-z0-9_-]\{30,\}/<x>/g'; exit 1; }
+      - name: Sample games
+        env:
+          GAMES: ${{ inputs.games }}
+          HOURS: ${{ inputs.hours }}
+          WORKERS: ${{ inputs.workers }}
+          PER_SITE: ${{ inputs.per_site }}
+          N: ${{ matrix.n }}
+        run: |
+          H=$(( HOURS > 5 ? 5 : HOURS ))
+          # graceful stop: no new games 25 minutes before the end so the last games can finish
+          ( sleep $(( H * 3600 - 1500 )); touch live/t99/STOP ) &
+          timeout $(( H * 3600 + 300 )) bun live/t99.mjs --machine "cloud${N}" --only "${GAMES}" --workers "${WORKERS}" --per-site "${PER_SITE}" --share 0.95 || echo "runner exited with $?"
+      - name: Upload the ledger and log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledger-cloud${{ matrix.n }}
+          path: |
+            live/t99/ledger-cloud${{ matrix.n }}.jsonl
+            live/t99/t99-cloud${{ matrix.n }}.log
+          if-no-files-found: warn
+          retention-days: 30

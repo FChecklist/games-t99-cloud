@@ -1,0 +1,6 @@
+live/t99/ledger-*.jsonl
+live/t99/STOP
+live/gate-status.json
+live/out/
+live/runner.env
+*.env

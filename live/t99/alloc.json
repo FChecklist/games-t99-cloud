@@ -1,0 +1,8 @@
+{
+ "tambola": {"weakest": "call", "confidence": 0.99, "target_R": 0.99, "size_priority": {"20": 0.7, "100": 0.25, "250": 0.05}, "stop": false},
+ "bingo": {"weakest": "payfree", "confidence": 0.99, "target_R": 0.99, "size_priority": {"20": 0.7, "100": 0.25, "250": 0.05}, "stop": false},
+ "snakes": {"weakest": "payfree", "confidence": 0.99, "target_R": 0.99, "size_priority": {"20": 0.7, "100": 0.25, "250": 0.05}, "stop": false},
+ "luck": {"weakest": "payfree", "confidence": 0.99, "target_R": 0.99, "size_priority": {"20": 0.7, "100": 0.25, "250": 0.05}, "stop": false},
+ "luckydraw": {"weakest": "payfree", "confidence": 0.99, "target_R": 0.99, "size_priority": {"20": 0.7, "100": 0.25, "250": 0.05}, "stop": false},
+ "tictactoe": {"weakest": "payfree", "confidence": 0.99, "target_R": 0.99, "size_priority": {"20": 0.7, "100": 0.25, "250": 0.05}, "stop": false}
+}
