@@ -49,7 +49,7 @@ const DAY_SEATS = { tambola: 1e7, bingo: 1e7, tictactoe: 1e7, snakes: 1e7, luck:
 const EXTRA_SEATS = 35; // late joiners, family members, probes: every run asks for a few more seats than its crowd
 const MAX_PER_SITE = Number(opt("per-site", 2));
 // run ids must never repeat (run.mjs skips an id that already has a run file): machine offset + seconds since 5 Nov 2026 00:00 UTC, one id per start
-const ID_BASE = ({ partner: 1, phone: 2, cloud1: 3, cloud2: 4, cloud3: 5, cloud4: 6, cloud5: 7, cloud6: 8, cloud7: 9, cloud8: 10 }[MACHINE] ?? 11) * 100000000;
+const ID_BASE = ({ partner: 1, phone: 2, cloud1: 3, cloud2: 4, cloud3: 5, cloud4: 6, cloud5: 7, cloud6: 8, cloud7: 9, cloud8: 10, cloud9: 11, cloud10: 12, cloud11: 13, cloud12: 14, cloud13: 15, cloud14: 16, cloud15: 17, cloud16: 18, cloud17: 19, cloud18: 20, cloud19: 21, cloud20: 22 }[MACHINE] ?? 23) * 100000000;
 const idNow = () => ID_BASE + Math.floor((Date.now() - Date.UTC(2026, 10, 5)) / 1000) * 10;
 let lastId = 0;
 const nextId = () => { lastId = Math.max(lastId + 1, idNow()); return lastId; };

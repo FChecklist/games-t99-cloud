@@ -9,7 +9,7 @@ on:
         description: "game types, comma separated (tambola,bingo,snakes,luck,luckydraw,tictactoe)"
         default: "tambola"
       jobs:
-        description: "how many cloud machines (1 to 8)"
+        description: "how many cloud machines (1 to 20; GitHub allows 20 at once)"
         default: "1"
       hours:
         description: "hours each machine samples (1 to 5)"
@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        n: [1, 2, 3, 4, 5, 6, 7, 8]
+        n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     env:
       X_RUNNER_KEY: ${{ secrets.X_RUNNER_KEY }}
       CLOUDFLARE_D1_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
