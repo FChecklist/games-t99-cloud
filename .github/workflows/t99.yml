@@ -79,6 +79,8 @@ jobs:
           PER_SITE: ${{ inputs.per_site }}
           N: ${{ matrix.n }}
           T99_TEAM_RATE: ${{ inputs.team_rate }}
+          T99_STAGGER_S: "25"
+          T99_CLOUD_PAUSE_MIN: "10"
         run: |
           H=$(( HOURS > 5 ? 5 : HOURS ))
           # graceful stop: no new games 25 minutes before the end so the last games can finish
