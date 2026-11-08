@@ -80,6 +80,7 @@ jobs:
           N: ${{ matrix.n }}
           T99_TEAM_RATE: ${{ inputs.team_rate }}
           T99_STAGGER_S: "25"
+          T99_MACHINE_STAGGER_S: "15"
           T99_CLOUD_PAUSE_MIN: "10"
         run: |
           H=$(( HOURS > 5 ? 5 : HOURS ))

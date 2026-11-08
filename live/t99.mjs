@@ -21,6 +21,7 @@ const opt = (k, d) => { const i = argv.indexOf("--" + k); return i < 0 ? d : arg
 const MACHINE = String(opt("machine", "partner"));
 const WORKERS = Number(opt("workers", 1));
 const STAGGER_S = Number(process.env.T99_STAGGER_S || 0);
+const MACHINE_STAGGER_S = Number(process.env.T99_MACHINE_STAGGER_S || 0);
 const CLOUD_PAUSE_MIN = Number(process.env.T99_CLOUD_PAUSE_MIN || 0);
 const SHARE = Number(opt("share", 0.5));
 const TOTAL = Number(opt("total", 299)); // legacy, only used by the old plan print
@@ -195,7 +196,7 @@ function spawnRun(game, size, id, ua) {
 
 async function worker(n) {
     // Cloud only (T99_STAGGER_S): spread the first game starts so 12 organizers do not sign in at the very same second (9 of 13 canary games on 8 Nov ended in a 503 'doors are very busy' burst answer).
-    if (STAGGER_S > 0 && n > 1) { await sleep((n - 1) * STAGGER_S * 1000 + Math.random() * 5000); }
+    { const mi = Number(String(MACHINE).replace(/\D/g, "")) || 1; const off = Math.max(0, mi - 1) * MACHINE_STAGGER_S * 1000 + (n > 1 ? (n - 1) * STAGGER_S * 1000 : 0); if ((STAGGER_S > 0 || MACHINE_STAGGER_S > 0) && off > 0) await sleep(off + Math.random() * 5000); }
     while (true) {
     if (stopped()) { say(`worker ${n}: STOP file, exiting`); return; }
     const c = pick();
