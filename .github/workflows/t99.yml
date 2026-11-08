@@ -20,6 +20,9 @@ on:
       per_site:
         description: "max parallel games per site per machine"
         default: "12"
+      team_rate:
+        description: "share of runs that also exercise the host/co-host step (shared 5-Host limit)"
+        default: "0.03"
 permissions:
   contents: read
 jobs:
@@ -75,6 +78,7 @@ jobs:
           WORKERS: ${{ inputs.workers }}
           PER_SITE: ${{ inputs.per_site }}
           N: ${{ matrix.n }}
+          T99_TEAM_RATE: ${{ inputs.team_rate }}
         run: |
           H=$(( HOURS > 5 ? 5 : HOURS ))
           # graceful stop: no new games 25 minutes before the end so the last games can finish

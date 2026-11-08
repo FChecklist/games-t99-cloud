@@ -171,6 +171,8 @@ async function tidyLeftoverHosts(ctx) {
   for (const x of left) await ctx.call("host", "retire-leftover-host", "POST", "/api/org/team/retire", { body: { id: x.id }, expect: [200, 404, 409], tries: 0 });
 }
 export async function stepTeam(ctx, S) {
+  // cloud lane: the shared test organisation allows only 5 Hosts at once, so with many parallel games only a small share of runs exercise the host/co-host team step (T99_TEAM_RATE, default 1 = every run). Host/co-host are not part of the five counted modules.
+  if (process.env.T99_TEAM_RATE && Math.random() >= Number(process.env.T99_TEAM_RATE)) { ctx.note("team", "skipped", "team step skipped in this run (shared 5-Host limit, cloud lane)"); return; }
   await tidyLeftoverHosts(ctx);
   const h = await ctx.call("host", "create-host", "POST", "/api/org/host", { body: { label: "SMOKE10M host", mobile: S.phoneOf(990) }, expect: [200] });
   if (h.ok && h.j?.hostKey) { ctx.keys.host = h.j.hostKey; S.ids.host = h.j.id; } ctx.setState(h.ok ? `host made; emailed=${!!h.j?.emailed} link-only` : "no host");
