@@ -101,7 +101,7 @@ export function classify(j, players) {
   const calls = j.stats?.calls ?? 0, netN = j.stats?.netErrors ?? net.length;
   const dnsOnly = net.length > 0 && net.every((x) => /getaddrinfo (ENOTFOUND|EAI_AGAIN)/.test(x));
   if (net.length && dnsOnly && netN <= 0.05 * calls && !notAllowed.length && !hostLeft.length) return { kind: "clean", blips: netN, why: `net blips ignored: ${netN} DNS failures in ${calls} requests (our resolver, retried)` };
-  if (net.length || notAllowed.length || hostLeft.length) return { kind: "env", why: `game ended but our side had problems (net ${net.length}, not-allowed ${notAllowed.length}, hosts ${hostLeft.length}); not counted as clean` };
+  if (net.length || notAllowed.length || hostLeft.length) return { kind: "env", why: `game ended but our side had problems (net ${net.length}, not-allowed ${notAllowed.length}, hosts ${hostLeft.length}); not counted as clean` + (net.length ? ` [first net event: ${net[0].slice(0, 220)}]` : "") };
   return { kind: "clean", why: "" };
 }
 
