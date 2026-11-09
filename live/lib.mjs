@@ -210,7 +210,10 @@ export function makeCtx({ game, site, runId, kind = "game", dry = false, mock = 
 }
 
 // ---------- ids, people, times ----------
-export const newEid = () => ID_PREFIX + randomBytes(4).toString("hex").slice(0, 5); // exactly 12 characters
+// T99 (9 Nov 2026, BOSS 23:40 IST): 5 base36 characters (36^5 = 60,466,176 ids; was 5 hex = 1,048,576, which collided with an older game in the Tambola DB once in 782 games). Still exactly 12 characters. Rejection sampling keeps every character uniform.
+export const EID_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
+export const EID_SPACE = EID_ALPHABET.length ** 5;
+export const newEid = (rand = randomBytes) => { let s = ""; while (s.length < 5) for (const b of rand(8)) { if (b < 252 && s.length < 5) s += EID_ALPHABET[b % 36]; } return ID_PREFIX + s; };
 export const deviceOf = (runId, i) => sha("dev|" + runId + "|" + i).slice(0, 32);
 export const phoneOf = (runSalt, i) => "9" + String(Number(runSalt) % 100).padStart(2, "0") + String(1000000 + i).slice(1).padStart(7, "0"); // 10 digits, starts with 9
 export const nameOf = (game, i) => `SMOKE10M ${game} P${String(i).padStart(3, "0")}`;

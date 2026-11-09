@@ -79,7 +79,7 @@ async function runTask(t) {
     S = t.kind === "journey" ? await runJourney(ctx, gameMod, o) : await runFullGame(ctx, gameMod, o);
     outcome = S.outcome || "done";
   } catch (e) { if (e instanceof StopError) { outcome = "stopped"; stopped = true; } else { outcome = "crashed"; err = String(e && e.stack || e).slice(0, 400); } }
-  const j = runJson(ctx, { outcome, error: err, ...base, eid: S?.eid, joined: S?.joined ?? 0, totalSeenByOrganizer: S?.totalSeen ?? null, paid: S?.paid ?? null, zero: S?.zero ?? null, ended: !!S?.ended, cancelled: !!S?.cancelled, erased: !!S?.erased, budgetAfter: { writes: budget.writes, joins: budget.joins } });
+  const j = runJson(ctx, { outcome, error: err, ...base, eid: S?.eid, joined: S?.joined ?? 0, totalSeenByOrganizer: S?.totalSeen ?? null, paid: S?.paid ?? null, existed: !!S?.existed, eidRetries: S?.eidRetries ?? 0, zero: S?.zero ?? null, ended: !!S?.ended, cancelled: !!S?.cancelled, erased: !!S?.erased, budgetAfter: { writes: budget.writes, joins: budget.joins } });
   writeJson(join(O.out, "runs", `run-${t.id}.json`), j); budgetSave(); finished++;
   say(`${t.id}: ${outcome}; ${ctx.stats.calls} calls, ${ctx.errors.length} unexpected answers, ${S?.joined ?? 0} joined, ${j.seconds}s`);
 }

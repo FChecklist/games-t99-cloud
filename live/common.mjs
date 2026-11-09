@@ -42,6 +42,16 @@ export async function stepFirstLook(ctx, S) {
     await ctx.call("organizer-first-look", step, "GET", p, { as: step === "payments-status" || step === "site-mode" || step === "ai-manifest" || step === "schedule-helper" ? null : "org", expect: [200, 404], tries: 1 });
 }
 
+/** T99 (9 Nov 2026, BOSS 23:40 IST): the site's create answers {existed:true} when the id is already taken by an OLDER game and never overwrites it. Running the journey against that old game
+ *  (already started, people removed) made one Tambola row fail (304021850). So when a create answers existed, take a fresh id and create again (max 4 times). S.existed / S.eidRetries are
+ *  written to the run json and the ledger row, so a collision is visible per row. A create that answers existed after OUR OWN network retry is treated the same (an unpublished draft is left behind, harmless). */
+export async function createFresh(doCreate, S, base, maxRetries = 4) {
+  let c = await doCreate(base);
+  while (c.ok && c.j?.existed && (S.eidRetries || 0) < maxRetries) { S.existed = true; S.eidRetries = (S.eidRetries || 0) + 1; S.eid = newEid(); base.id = S.eid; c = await doCreate(base); }
+  if (c.ok && c.j?.existed) S.existed = true;
+  return c;
+}
+
 /** Create -> settings -> publish with the ZERO route (the owner's test pack, Rs 0). */
 export async function stepSetup(ctx, S, game) {
   const base = { id: S.eid, startRound: S.startRound, callSeconds: S.callSeconds, cap: S.cap, name: `SMOKE10M test ${S.game} ${S.name}`.slice(0, 40), whoCanJoin: "anyone", ...(game.createExtra ? game.createExtra(S) : {}) };
@@ -50,8 +60,8 @@ export async function stepSetup(ctx, S, game) {
   await ctx.call("create", "refused-cap-zero", "POST", "/api/z", { body: { ...base, id: newEid(), cap: 0 }, expect: [400], tries: 0 });
   await ctx.call("create", "refused-bad-gap", "POST", "/api/z", { body: { ...base, id: newEid(), callSeconds: 7 }, expect: [400], tries: 0 });
   await ctx.call("create", "refused-no-sign-in", "POST", "/api/z", { body: base, as: null, expect: [401, 403], tries: 0 });
-  let c = await ctx.call("create", "create-game", "POST", "/api/z", { body: base, expect: [200] });
-  { const m = c.s === 400 ? /(\d+) second(?:s| window)|one speed/i.exec(String(c.j?.error)) : null; const want = m ? Number(m[1] || 12) : 0; if (want && base.callSeconds !== want) { S.callSeconds = want; base.callSeconds = want; ctx.notes.push("site wants a " + want + "-second gap"); c = await ctx.call("create", "create-game-" + want + "s", "POST", "/api/z", { body: base, expect: [200] }); } }
+  let c = await createFresh((b) => ctx.call("create", "create-game", "POST", "/api/z", { body: b, expect: [200] }), S, base);
+  { const m = c.s === 400 ? /(\d+) second(?:s| window)|one speed/i.exec(String(c.j?.error)) : null; const want = m ? Number(m[1] || 12) : 0; if (want && base.callSeconds !== want) { S.callSeconds = want; base.callSeconds = want; ctx.notes.push("site wants a " + want + "-second gap"); c = await createFresh((b) => ctx.call("create", "create-game-" + want + "s", "POST", "/api/z", { body: b, expect: [200] }), S, base); } }
   if (c.s === 400 && game.createFallback) { const b2 = game.createFallback(base, c); if (b2) c = await ctx.call("create", "create-game-fallback", "POST", "/api/z", { body: b2, expect: [200] }); }
   ctx.setState(c.ok ? `draft=${c.j?.draft} existed=${!!c.j?.existed}` : "no game");
   if (!c.ok) return false;
