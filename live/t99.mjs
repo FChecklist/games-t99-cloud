@@ -74,7 +74,7 @@ const Q = quotas(SHARE);
 // ---------- classification of one finished run ----------
 const NORMAL = /^(late-join|join-edge|families|people-list|waiting-room|leave-rejoin|cohost\/cohost-list-before-accepting-role|pause-resume\/request-pause|create\/create-game|snakes-throws\/throw-turn-\d+-late|announce|fairness|probe)/;
 const SERIOUS = /\b5\d\d\b|server-error|Something went wrong|crash|exception/i;
-export function classify(j, players) {
+export function classify(j, players, orgEmail = "") {
   if (!j) return { kind: "env", why: "no run file written" };
   const un = (j.unexpected || []).map(String);
   const signinRefused = un.filter((x) => /^signin\/test-login .*-> 400/.test(x.trim())); // the game is in LIVE mode: the test sign-in is (rightly) refused
@@ -95,6 +95,11 @@ export function classify(j, players) {
   if (j.outcome !== "ended") return { kind: "fail", why: `outcome ${j.outcome}${j.error ? " " + String(j.error).slice(0, 120) : ""}` + (un.length ? ` [${un.length} unexpected answers, first 4: ${un.slice(0, 4).map((x) => x.replace(/\s+/g, " ").slice(0, 150)).join(" || ")}]` : "") };
   if (!j.ended) return { kind: notAllowed.length || net.length ? "env" : "fail", why: "end not confirmed" + (notAllowed.length ? " (organizer key died: Not allowed)" : net.length ? " (network)" : "") };
   if ((j.joined ?? 0) < need) return { kind: net.length ? "env" : "fail", why: `only ${j.joined} of ${players} joined` };
+  // BOSS 9 Nov 2026 (option B): the free owner test pack exists for demo1@xyz.in only, so a game made by demo2/demo3 (T99_ORG_SPREAD) is correctly answered "402 payment-due" on the public view. That, and ONLY that,
+  // on a game that ended normally (outcome ended, end confirmed, every player joined) is a harness artefact: kind env-unpaid (kept in the ledger, excluded from n and f). Any other odd answer, or any
+  // other problem above, stays a failure; a demo1 game (or an unknown organizer) with this answer stays a failure too.
+  const UNPAID = /\/view -> 402 \[payment-due\]/;
+  if (odd.length && odd.every((x) => UNPAID.test(x)) && /^demo[23]@xyz\.in$/.test(orgEmail) && (j.joined ?? 0) === players && j.ended) return { kind: "env-unpaid", why: `unpaid test game (harness, ${orgEmail} is not owner-free): ${odd[0].slice(0, 120)}` };
   if (odd.length) return { kind: "fail", why: `unexpected answer not on the normal list: ${odd[0].slice(0, 160)}` };
   // RULE for ignoring network blips (boss, 5 Nov): only client-side DNS failures (getaddrinfo ENOTFOUND / EAI_AGAIN), never an HTTP 4xx/5xx, a timeout, a reset or a refused connection from the site; the retry must have succeeded and the game must
   // still have ended with >=95% of the crowd and no other odd answer; the blip count is written in the ledger line (netBlips) and must stay at or below 5% of the run's requests. Otherwise the run is ENV (repeated), never clean.
@@ -141,7 +146,7 @@ function state() {
     if (r.kind === "fail" && onLive) failedCell[k] = true;
     if (String(r.at).slice(0, 10) === today) seats[r.game] = (seats[r.game] || 0) + r.size + EXTRA_SEATS;
   }
-  for (const g of TYPES) { const last = L.filter((r) => r.game === g).slice(-5); envRun[g] = last.length === 5 && last.every((r) => String(r.kind).startsWith("env")) ? 1 : 0; }
+  for (const g of TYPES) { const last = L.filter((r) => r.game === g && r.kind !== "env-unpaid").slice(-5); envRun[g] = last.length === 5 && last.every((r) => String(r.kind).startsWith("env")) ? 1 : 0; }
   return { L, cell, failedCell, seats, envRun, today };
 }
 const inFlight = {}; // game -> count; and reserved seats
@@ -224,9 +229,9 @@ async function worker(n) {
     if (r.code === 4) { say("run.mjs saw a STOP file"); return; }
     let j = null; const file = join(r.out, "runs", `run-${g}-game-${String(id).padStart(3, "0")}.json`);
     try { j = JSON.parse(readFileSync(file, "utf8")); if (new Date(j.startedAt).getTime() < t0 - 5000) j = null; } catch {}
-    const v = classify(j, size);
+    const orgE = orgEmailFor(g, n); const v = classify(j, size, orgE);
     const rejoins = (j?.rows || []).filter((x) => /come-back-same-phone/.test(String(x.step)) && x.expected !== false).reduce((a, x) => a + (x.n || 1), 0);
-    const line = { at: new Date().toISOString(), machine: MACHINE, game: g, size, ua, band, rejoins, id, kind: v.kind, why: v.why, outcome: j?.outcome ?? "no-file", joined: j?.joined ?? 0, ended: !!j?.ended, secs: Math.round((Date.now() - t0) / 1000), version: j?.version?.version ?? j?.commit ?? "?", commit: j?.version?.commit ?? j?.commit ?? "?", unexpected: (j?.unexpected || []).length, netBlips: v.blips ?? 0, requests: j?.stats?.calls ?? 0, exit: r.code };
+    const line = { at: new Date().toISOString(), machine: MACHINE, game: g, size, ua, band, rejoins, id, org: orgE ? orgE.split("@")[0] : "", kind: v.kind, why: v.why, outcome: j?.outcome ?? "no-file", joined: j?.joined ?? 0, ended: !!j?.ended, secs: Math.round((Date.now() - t0) / 1000), version: j?.version?.version ?? j?.commit ?? "?", commit: j?.version?.commit ?? j?.commit ?? "?", unexpected: (j?.unexpected || []).length, netBlips: v.blips ?? 0, requests: j?.stats?.calls ?? 0, exit: r.code };
     appendFileSync(LEDGER, JSON.stringify(line) + "\n");
     say(`${g} ${size} id ${id}: ${v.kind.toUpperCase()} ${v.why} (${line.joined} joined, ${line.secs}s)`);
     if (v.kind === "fail") { if (CLOUD_PAUSE_MIN > 0) { writeFileSync(join(T, `PAUSE-${g}`), String(Date.now() + CLOUD_PAUSE_MIN * 60000)); say(`PAUSE ${g} ${CLOUD_PAUSE_MIN} min after FAIL (cloud: nobody can delete a HALT file; the failure stays counted in the ledger and is classified at harvest)`); } else { writeFileSync(join(T, `HALT-${g}`), `${line.at} ${MACHINE} ${g} ${size} id ${id}: ${v.why}\nDelete this file only after the failure is classified (defect = fix + release + restart the count; test fault = fix the runner).\n`); say(`HALT ${g}`); } }
