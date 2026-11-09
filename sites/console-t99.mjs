@@ -12,7 +12,7 @@ const args = new Set(process.argv.slice(2));
 const argOf = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
 const PREFIX = argOf("--prefix", "console");
 const HOST = "https://console.corporatetambola.com";
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 TARGET99-console-check";
+const UA = process.env.T99_FETCH_UA || "TARGET99-console-check/1.0 (Corporate Games reliability test; GitHub Actions; read-only GET)"; // cloud copy: honest, non-browser UA (BOSS 9 Nov)
 const at = new Date().toISOString();
 
 async function get(url) {

@@ -15,7 +15,7 @@ const CONSOLE_HOST = "console.corporatetambola.com";
 const here = dirname(fileURLToPath(import.meta.url));
 const LEDGER = argOf("--ledger", join(here, "home-ledger.jsonl"));
 const STOP = join(here, "HOME-STOP");
-const UA_DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 TARGET99-home-check";
+const UA_DESKTOP = process.env.T99_FETCH_UA || "TARGET99-home-check/1.0 (Corporate Games reliability test; GitHub Actions; read-only GET)"; // cloud copy: honest, non-browser UA (BOSS 9 Nov)
 
 async function get(url, opts = {}) {
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -92,7 +92,7 @@ export async function runOnce() {
     const sid = [...crypto.getRandomValues(new Uint8Array(12))].map((b) => b.toString(16).padStart(2, "0")).join("");
     const did = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
     const body = JSON.stringify({ s: sid, g: 0, dv: "desktop", l: "en", d: did, lp: "/team-building-games", r: "", u: { s: "", m: "", c: "" }, e: [{ k: "pv", p: "/team-building-games" }, { k: "act", p: "/team-building-games", n: "t9999-probe", v: "" }] });
-    const t = await get(`${HOST}/api/t`, { method: "POST", headers: { "content-type": "text/plain", "user-agent": "Mozilla/5.0 T9999-RUN/1.0" }, body, noBody: true });
+    const t = await get(`${HOST}/api/t`, { method: "POST", headers: { "content-type": "text/plain", "user-agent": "TARGET99-home-check/1.0" }, body, noBody: true });
     if (t.status === 204) pass("click tracking", "204"); else fail("click tracking", `status ${t.status}${t.error ? " " + t.error : ""}`);
   } else {
     checks.push({ name: "click tracking", ok: true, why: "not covered (run without --click until home-landing confirms the marker is live)", uncovered: true });
