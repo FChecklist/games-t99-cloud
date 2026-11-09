@@ -23,6 +23,9 @@ on:
       sizes:
         description: "player counts to sample, comma separated (20,100,250)"
         default: "20,100,250"
+      org_spread:
+        description: "1 = spread organizer test sign-ins over demo1/2/3 (ignored for tambola); 0 = demo1 only (BOSS 9 Nov: Luck and Tic Tac Toe, at most 3 games in flight because a site keeps 3 organizer keys per account)"
+        default: "1"
       team_rate:
         description: "share of runs that also exercise the host/co-host step (shared 5-Host limit)"
         default: "0.03"
@@ -91,7 +94,7 @@ jobs:
           N: ${{ matrix.n }}
           T99_TEAM_RATE: ${{ inputs.team_rate }}
           T99_SIZES: ${{ inputs.sizes }}
-          T99_ORG_SPREAD: "1"
+          T99_ORG_SPREAD: ${{ inputs.org_spread }}
           T99_STAGGER_S: "25"
           T99_MACHINE_STAGGER_S: "15"
           T99_CLOUD_PAUSE_MIN: "10"
