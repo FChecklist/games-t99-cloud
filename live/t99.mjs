@@ -92,7 +92,7 @@ export function classify(j, players) {
   if (wrongOk.length) return { kind: "fail", why: `accepted what should be refused: ${wrongOk[0].slice(0, 160)}` };
   if (busy.length) return { kind: "env-busy", why: `per-address join guard answered busy ${busy.length}x` };
   if (j.outcome !== "ended" && (net.length || notAllowed.length || hostLeft.length)) return { kind: net.length ? "env" : "env", why: `outcome ${j.outcome} with our-side problems (net ${net.length}, not-allowed ${notAllowed.length}, hosts ${hostLeft.length})` };
-  if (j.outcome !== "ended") return { kind: "fail", why: `outcome ${j.outcome}${j.error ? " " + String(j.error).slice(0, 120) : ""}` };
+  if (j.outcome !== "ended") return { kind: "fail", why: `outcome ${j.outcome}${j.error ? " " + String(j.error).slice(0, 120) : ""}` + (un.length ? ` [${un.length} unexpected answers, first 4: ${un.slice(0, 4).map((x) => x.replace(/\s+/g, " ").slice(0, 150)).join(" || ")}]` : "") };
   if (!j.ended) return { kind: notAllowed.length || net.length ? "env" : "fail", why: "end not confirmed" + (notAllowed.length ? " (organizer key died: Not allowed)" : net.length ? " (network)" : "") };
   if ((j.joined ?? 0) < need) return { kind: net.length ? "env" : "fail", why: `only ${j.joined} of ${players} joined` };
   if (odd.length) return { kind: "fail", why: `unexpected answer not on the normal list: ${odd[0].slice(0, 160)}` };
