@@ -13,7 +13,8 @@ const a = process.argv.slice(2); const opt = (k, d) => { const i = a.indexOf("--
 const kind = String(opt("kind", "home")), prefix = String(opt("prefix", kind + "3")), hours = Number(opt("hours", 2)), waitS = Number(opt("wait", 180)), stopAfter = Number(opt("stop-after-fail", 3));
 const LOG = join(OUT, `${prefix}-loop.log`);
 const say = (...x) => { const l = new Date().toISOString().slice(11, 19) + " " + x.join(" "); console.log(l); try { appendFileSync(LOG, l + "\n"); } catch {} };
-const end = Date.now() + hours * 3600000 - 25 * 60000; // no new trial in the last 25 minutes (same graceful end as the game lanes)
+const minutes = Number(opt("minutes", 0)); // canary: --minutes N runs exactly N minutes, no 25-minute margin
+const end = minutes > 0 ? Date.now() + minutes * 60000 : Date.now() + hours * 3600000 - 25 * 60000; // no new trial in the last 25 minutes (same graceful end as the game lanes)
 const run = (args) => { const r = spawnSync(process.execPath, args, { cwd: HERE, encoding: "utf8", timeout: 600000, env: { ...process.env, T99_CHROME_CHANNEL: process.env.T99_CHROME_CHANNEL || "chrome" } }); return ((r.stdout || "") + (r.stderr || "")).trim().split("\n").slice(-1)[0] || `exit ${r.status}`; };
 const lastKinds = (file, n) => { try { return readFileSync(file, "utf8").trim().split("\n").slice(-n).map((l) => JSON.parse(l).kind); } catch { return []; } };
 say(`loop start kind=${kind} prefix=${prefix} hours=${hours} wait=${waitS}s`);

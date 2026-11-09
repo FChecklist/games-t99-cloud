@@ -11,6 +11,9 @@ on:
       hours:
         description: "hours (1 to 5)"
         default: "2"
+      minutes:
+        description: "canary: run exactly this many minutes (0 = use hours)"
+        default: "0"
       wait:
         description: "seconds between trials"
         default: "180"
@@ -34,10 +37,13 @@ jobs:
           KIND: ${{ inputs.kind }}
           HOURS: ${{ inputs.hours }}
           WAIT: ${{ inputs.wait }}
+          MINUTES: ${{ inputs.minutes }}
           T99_CHROME_CHANNEL: chrome
         run: |
           H=$(( HOURS > 5 ? 5 : HOURS ))
-          timeout $(( H * 3600 + 300 )) node sites/loop.mjs --kind "${KIND}" --prefix "${KIND}3" --hours "${H}" --wait "${WAIT}" || echo "loop exited with $?"
+          M=$(( MINUTES > 0 ? MINUTES : 0 ))
+          LIMIT=$(( H * 3600 + 300 )); if [ "$M" -gt 0 ]; then LIMIT=$(( M * 60 + 600 )); fi
+          timeout "$LIMIT" node sites/loop.mjs --kind "${KIND}" --prefix "${KIND}3" --hours "${H}" --minutes "${M}" --wait "${WAIT}" || echo "loop exited with $?"
       - name: Upload the ledgers and log
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
