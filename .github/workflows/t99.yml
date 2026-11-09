@@ -74,6 +74,14 @@ jobs:
           nohup bun live/gate-watch.mjs --every 300 --hours 3 --out live/gate-status.json > gate.log 2>&1 &
           for i in $(seq 1 30); do [ -s live/gate-status.json ] && break; sleep 5; done
           test -s live/gate-status.json || { echo "::error::gate file was not written"; cat gate.log | sed 's/[A-Za-z0-9_-]\{30,\}/<x>/g'; exit 1; }
+      - name: Start the in-job D1 overload watcher (reads only; pauses NEW games of an overloaded game, never prints the secret)
+        env:
+          GAMES: ${{ inputs.games }}
+          N: ${{ matrix.n }}
+        run: |
+          mkdir -p live/t99
+          nohup bun live/d1-watch.mjs --games "${GAMES}" --every 60 --pause-min 180 --machine "cloud${N}" --out "live/t99/d1-watch-cloud${N}.log" > /dev/null 2>&1 &
+          sleep 3; test -s "live/t99/d1-watch-cloud${N}.log" && head -c 300 "live/t99/d1-watch-cloud${N}.log" | sed 's/[A-Za-z0-9_-]\{30,\}/<x>/g' || echo "::warning::d1 watcher wrote no log yet"
       - name: Sample games
         env:
           GAMES: ${{ inputs.games }}
@@ -99,5 +107,6 @@ jobs:
           path: |
             live/t99/ledger-cloud${{ matrix.n }}.jsonl
             live/t99/t99-cloud${{ matrix.n }}.log
+            live/t99/d1-watch-cloud${{ matrix.n }}.log
           if-no-files-found: warn
           retention-days: 30
