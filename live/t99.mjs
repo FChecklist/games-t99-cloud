@@ -44,7 +44,7 @@ const LEDGER = join(T, `ledger-${MACHINE}.jsonl`);
 // Phone runs the five non-Tambola games only (BOSS 6 Nov): pick() gives every Tambola candidate a fixed bonus, so Tambola always won on the phone.
 const ALLTYPES = MACHINE === "phone" ? ["bingo", "tictactoe", "snakes", "luck", "luckydraw"] : ["tambola", "bingo", "tictactoe", "snakes", "luck", "luckydraw"];
 const TYPES = ONLY.length ? ALLTYPES.filter((g) => ONLY.includes(g)) : ALLTYPES;
-const SIZES = [20, 100, 250];
+const SIZES = (process.env.T99_SIZES || "20,100,250").split(",").map(Number).filter((x) => x > 0); // cloud lanes may restrict the sizes (gentle shape: "20")
 const MIX = { 20: 0.2, 100: 0.4, 250: 0.4 };
 // seats one address may open per site per day (measured: Tambola about 3000, 3x the pack; the others assumed 1500 until a day shows otherwise) split between the two machines
 // since 5 Nov the join guard is skipped for SMK10M- test games that carry the runner key, so the seat budget is effectively unlimited; a "busy" answer still marks the site day-full
