@@ -65,7 +65,7 @@ try {
     const inl = viol.filter((v) => v === "inline").length, env = Math.min(cfInline, inl);
     envCsp += env;
     const dropInline = env > 0 && env === inl;
-    const real = consoleErr.filter((t) => !(dropInline && /Refused to execute inline script/.test(t)));
+    const real = consoleErr.filter((t) => !(dropInline && /Refused to execute inline script|Executing inline script violates/.test(t)));
     if (real.length) problems.push(`${vp.name}: console errors ${real.length} e.g. ${real[0]}`);
     if (pageErr.length) problems.push(`${vp.name}: page errors ${pageErr[0]}`);
     if (badReq.length) problems.push(`${vp.name}: failed requests ${badReq[0]}`);

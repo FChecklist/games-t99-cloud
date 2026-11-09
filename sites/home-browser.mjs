@@ -62,7 +62,7 @@ try {
       envCspTotal += envCsp;
       // Only drop inline-refusal console lines when EVERY inline violation on the page is the bot-detection one (the console text does not name the script).
       const dropInline = envCsp > 0 && envCsp === allInlineViol;
-      const nonEnvConsole = consoleErr.filter((t) => !(dropInline && /Refused to execute inline script/.test(t)));
+      const nonEnvConsole = consoleErr.filter((t) => !(dropInline && /Refused to execute inline script|Executing inline script violates/.test(t)));
       if (nonEnvConsole.length) problems.push(`${vp.name} ${url}: console errors ${nonEnvConsole.length} e.g. ${nonEnvConsole[0]}`);
       if (pageErr.length) problems.push(`${vp.name} ${url}: page errors ${pageErr[0]}`);
       if (badReq.length) problems.push(`${vp.name} ${url}: failed requests ${badReq[0]}`);
