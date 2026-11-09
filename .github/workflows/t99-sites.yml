@@ -1,0 +1,50 @@
+name: t99 sites (home + console)
+# Cloud lane for claims 7 (home.corporatetambola.com) and 8 (console.corporatetambola.com): the same read-only robots the partner laptop runs
+# (sites/*.mjs, copied unchanged except the browser channel), on GitHub's free ubuntu runners with the preinstalled Google Chrome. GET requests and a headless browser only:
+# no sign-in, no payment, no sign-up, no AI model. One trial per site every 3 minutes per job. Uploads <prefix>-fetch/-browser.jsonl as an artifact for the harvest.
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "home or console"
+        default: "home"
+      hours:
+        description: "hours (1 to 5)"
+        default: "2"
+      wait:
+        description: "seconds between trials"
+        default: "180"
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install playwright-core (the browser itself is the runner's Google Chrome)
+        run: |
+          cd sites && npm install --no-save --no-audit --no-fund playwright-core@1.49.1
+          google-chrome --version
+      - name: Loop
+        env:
+          KIND: ${{ inputs.kind }}
+          HOURS: ${{ inputs.hours }}
+          WAIT: ${{ inputs.wait }}
+          T99_CHROME_CHANNEL: chrome
+        run: |
+          H=$(( HOURS > 5 ? 5 : HOURS ))
+          timeout $(( H * 3600 + 300 )) node sites/loop.mjs --kind "${KIND}" --prefix "${KIND}3" --hours "${H}" --wait "${WAIT}" || echo "loop exited with $?"
+      - name: Upload the ledgers and log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sites-${{ inputs.kind }}
+          path: |
+            sites/out/*.jsonl
+            sites/out/*.log
+          if-no-files-found: warn
+          retention-days: 30
