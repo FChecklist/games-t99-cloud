@@ -74,6 +74,9 @@ const Q = quotas(SHARE);
 // ---------- classification of one finished run ----------
 const NORMAL = /^(late-join|join-edge|families|people-list|waiting-room|leave-rejoin|cohost\/cohost-list-before-accepting-role|pause-resume\/request-pause|create\/create-game|snakes-throws\/throw-turn-\d+-late|announce|fairness|probe)/;
 const SERIOUS = /\b5\d\d\b|server-error|Something went wrong|crash|exception/i;
+// BOSS 9 Nov 2026 (harness only): every ledger row now keeps WHICH unexpected answers the game gave, as {answer text (200 chars max): count}, at most 12 distinct, so a classification can be proven later and not only argued from counts.
+// The text is the runner's own line "step METHOD path -> status message" (paths use :eid placeholders); nothing from request bodies, keys or headers is in it.
+export function answerCounts(un) { const m = {}; for (const x of (un || [])) { const k = String(x).replace(/\s+/g, " ").trim().slice(0, 200); if (k in m) m[k]++; else if (Object.keys(m).length < 12) m[k] = 1; } return m; }
 export function classify(j, players, orgEmail = "") {
   if (!j) return { kind: "env", why: "no run file written" };
   const un = (j.unexpected || []).map(String);
@@ -231,7 +234,7 @@ async function worker(n) {
     try { j = JSON.parse(readFileSync(file, "utf8")); if (new Date(j.startedAt).getTime() < t0 - 5000) j = null; } catch {}
     const orgE = orgEmailFor(g, n); const v = classify(j, size, orgE);
     const rejoins = (j?.rows || []).filter((x) => /come-back-same-phone/.test(String(x.step)) && x.expected !== false).reduce((a, x) => a + (x.n || 1), 0);
-    const line = { at: new Date().toISOString(), machine: MACHINE, game: g, size, ua, band, rejoins, id, org: orgE ? orgE.split("@")[0] : "", kind: v.kind, why: v.why, outcome: j?.outcome ?? "no-file", joined: j?.joined ?? 0, ended: !!j?.ended, secs: Math.round((Date.now() - t0) / 1000), version: j?.version?.version ?? j?.commit ?? "?", commit: j?.version?.commit ?? j?.commit ?? "?", unexpected: (j?.unexpected || []).length, netBlips: v.blips ?? 0, requests: j?.stats?.calls ?? 0, exit: r.code };
+    const line = { at: new Date().toISOString(), machine: MACHINE, game: g, size, ua, band, rejoins, id, org: orgE ? orgE.split("@")[0] : "", kind: v.kind, why: v.why, outcome: j?.outcome ?? "no-file", joined: j?.joined ?? 0, ended: !!j?.ended, secs: Math.round((Date.now() - t0) / 1000), version: j?.version?.version ?? j?.commit ?? "?", commit: j?.version?.commit ?? j?.commit ?? "?", unexpected: (j?.unexpected || []).length, answers: answerCounts(j?.unexpected), netBlips: v.blips ?? 0, requests: j?.stats?.calls ?? 0, exit: r.code };
     appendFileSync(LEDGER, JSON.stringify(line) + "\n");
     say(`${g} ${size} id ${id}: ${v.kind.toUpperCase()} ${v.why} (${line.joined} joined, ${line.secs}s)`);
     if (v.kind === "fail") { if (CLOUD_PAUSE_MIN > 0) { writeFileSync(join(T, `PAUSE-${g}`), String(Date.now() + CLOUD_PAUSE_MIN * 60000)); say(`PAUSE ${g} ${CLOUD_PAUSE_MIN} min after FAIL (cloud: nobody can delete a HALT file; the failure stays counted in the ledger and is classified at harvest)`); } else { writeFileSync(join(T, `HALT-${g}`), `${line.at} ${MACHINE} ${g} ${size} id ${id}: ${v.why}\nDelete this file only after the failure is classified (defect = fix + release + restart the count; test fault = fix the runner).\n`); say(`HALT ${g}`); } }

@@ -23,3 +23,12 @@ describe("402 payment-due on the public view", () => {
     expect(classify(mk({ unexpected: [V, "x GET /y -> 503 Something went wrong"] }), 20, "demo3@xyz.in").kind).toBe("fail");
   });
 });
+import { answerCounts } from "./t99.mjs";
+describe("ledger keeps the unexpected answers", () => {
+  test("counts per distinct answer, 200 chars max, 12 distinct max", () => {
+    const a = answerCounts(["a -> 402 x", "a -> 402 x", "b -> 403 y"]); expect(a).toEqual({ "a -> 402 x": 2, "b -> 403 y": 1 });
+    expect(Object.keys(answerCounts(Array.from({ length: 30 }, (_, i) => "z" + i))).length).toBe(12);
+    expect(Object.keys(answerCounts(["q".repeat(500)]))[0].length).toBe(200);
+    expect(answerCounts(undefined)).toEqual({});
+  });
+});
