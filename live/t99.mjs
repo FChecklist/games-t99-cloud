@@ -183,11 +183,19 @@ function allDone() {
   return TYPES.every((g) => SIZES.every((z) => BANDS.every((b) => CLIENTS.every((u) => { const k = cellKey(g, z, b, u); return (S.cell[k] || 0) >= cellTarget(z, S.failedCell[k]); }))));
 }
 
-function spawnRun(game, size, id, ua) {
+// 9 Nov 2026 (root cause of 9 Luck and 4 Tic Tac Toe cloud failures): every game signs in as the SAME test organizer demo1@xyz.in and the sites keep only the latest few keys of an account,
+// so the oldest games of a wave of 8 lose their organizer key (403 on their late organizer calls). T99_ORG_SPREAD=1 spreads the 8 worker slots over the three test addresses
+// demo1/2/3@xyz.in (at most 3 games per address at any time). Harness only; off unless the cloud workflow sets it; Tambola is left as it was.
+function orgEmailFor(game, n) {
+  if (process.env.T99_ORG_SPREAD !== "1" || game === "tambola") return "";
+  const mi = Number(String(MACHINE).replace(/\D/g, "")) || 1;
+  return `demo${1 + (((mi - 1) * WORKERS + (n - 1)) % 3)}@xyz.in`;
+}
+function spawnRun(game, size, id, ua, orgEmail = "") {
   return new Promise((resolve) => {
     const out = join(HERE, "out", "t99", game); mkdirSync(out, { recursive: true });
     const args = [join(HERE, "run.mjs"), game, "--organizers", "0", "--games", "1", "--players", String(size), "--from", String(id), "--parallel", "1", "--out", out, "--join-cap-day", "40000", "--write-cap", "600000"];
-    const p = spawn(process.execPath, args, { cwd: dirname(HERE), env: { ...process.env, LIVE_PUBLIC_DNS: "1", T99_UA: ua || "desktop", T99_REJOIN_N: String(REJOIN_N) }, stdio: ["ignore", "pipe", "pipe"] });
+    const p = spawn(process.execPath, args, { cwd: dirname(HERE), env: { ...process.env, LIVE_PUBLIC_DNS: "1", T99_UA: ua || "desktop", T99_REJOIN_N: String(REJOIN_N), ...(orgEmail ? { T99_ORG_EMAIL: orgEmail } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
     let tail = ""; p.stdout.on("data", (d) => { tail = (tail + d).slice(-600); }); p.stderr.on("data", (d) => { tail = (tail + d).slice(-600); });
     p.on("exit", (code) => resolve({ code, out, tail }));
     p.on("error", (e) => resolve({ code: -1, out, tail: String(e) }));
@@ -209,7 +217,7 @@ async function worker(n) {
     inFlight[g] = (inFlight[g] || 0) + 1; inFlight[ck] = (inFlight[ck] || 0) + 1; reserved[g] = (reserved[g] || 0) + size + EXTRA_SEATS;
     const t0 = Date.now();
     say(`start ${g} ${size} players ${ua} ${band} id ${id}`);
-    const r = await spawnRun(g, size, id, ua);
+    const r = await spawnRun(g, size, id, ua, orgEmailFor(g, n));
     inFlight[g]--; inFlight[ck]--; reserved[g] -= size + EXTRA_SEATS;
     // Gate refused (BOSS, 5 Nov): skip THIS game for 5 minutes so the worker can run other games; never block the whole runner on one game.
     if (r.code === 3) { writeFileSync(join(T, `PAUSE-${g}`), String(Date.now() + 300000)); say(`${g}: gate refused (a real game is running or gate file stale): skipped for 5 minutes, other games continue`); await sleep(30000); continue; }

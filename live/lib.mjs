@@ -155,7 +155,7 @@ export function makeCtx({ game, site, runId, kind = "game", dry = false, mock = 
     sess.pending = (async () => {
       if (sess.signins >= Number(process.env.LIVE_MAX_SIGNINS || 8)) throw new Error("sign-in limit of this process reached (the site allows 30 per address per day and keeps only the latest 3 keys)");
       sess.signins++;
-      const r = await ctx.call("signin", "test-login", "POST", "/api/auth/verify", { body: { email: "demo1@xyz.in", code: "123456" }, as: null });
+      const r = await ctx.call("signin", "test-login", "POST", "/api/auth/verify", { body: { email: process.env.T99_ORG_EMAIL || "demo1@xyz.in", code: "123456" }, as: null });
       if (r.s !== 200 || !r.j?.token) throw new Error("test sign-in failed: status " + r.s + " " + short(r.j?.error));
       sess.token = r.j.token;
       if (reuseOn) { try { writeFileSync(SIGNIN_CACHE, JSON.stringify({ token: sess.token, game: ctx.game, at: Date.now() })); } catch {} }
