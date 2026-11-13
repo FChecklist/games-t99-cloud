@@ -335,7 +335,8 @@ export async function stepEnd(ctx, S, game) {
   const early = await ctx.call("end", "over-too-early-or-ok", "POST", P_PATH(S, "/over"), { as: null, body: { pid: phones[0]?.pid, device: phones[0]?.device }, expect: [200] }); ctx.setState(`counted=${early.j?.counted}`);
   for (const p of phones.slice(1)) await ctx.call("end", "phone-says-game-over", "POST", P_PATH(S, "/over"), { as: null, body: { pid: p.pid, device: p.device }, expect: [200] });
   await sleep(4000);
-  const life = await ctx.call("end", "life-after-over", "GET", P_PATH(S, "/life"), { expect: [200] }); ctx.setState(`endSrc=${life.j?.endSrc} endMs=${life.j?.endMs ? "set" : "none"} reportState=${life.j?.reportState}`);
+  let life = await ctx.call("end", "life-after-over", "GET", P_PATH(S, "/life"), { expect: [200, 403] });
+  if (life.s === 403) { await ctx.signIn(true); ctx.setState("organizer-key-retired: signed in again (the site keeps the newest 6 keys per account)"); life = await ctx.call("end", "life-after-over-2", "GET", P_PATH(S, "/life"), { expect: [200] }); } ctx.setState(`endSrc=${life.j?.endSrc} endMs=${life.j?.endMs ? "set" : "none"} reportState=${life.j?.reportState}`);
   S.ended = !!life.j?.endMs;
 }
 export async function stepReports(ctx, S) {

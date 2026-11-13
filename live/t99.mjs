@@ -25,6 +25,8 @@ const STAGGER_S = Number(process.env.T99_STAGGER_S || 0);
 const MACHINE_STAGGER_S = Number(process.env.T99_MACHINE_STAGGER_S || 0);
 const CLOUD_PAUSE_MIN = Number(process.env.T99_CLOUD_PAUSE_MIN || 0);
 const SETUP_GAP_S = Number(process.env.T99_SETUP_GAP_S || 0); // 13 Nov: one game set-up per machine per this many seconds (0 = off, as before)
+const BURST = process.env.T99_BURST === "1"; let burstWaiters = [], burstArrived = 0; // 13 Nov burst test only: every worker picks its game, then ALL start at the same instant (a barrier; 90 s at most). Off = unchanged.
+async function burstBarrier() { if (!BURST) return; burstArrived++; if (burstArrived >= WORKERS) { for (const f of burstWaiters) f(); burstWaiters = []; return; } await new Promise((res) => { burstWaiters.push(res); setTimeout(res, 90000); }); }
 const MAX_RUNS = Number(process.env.T99_MAX_RUNS || 0); let runsDone = 0; // 13 Nov: smoke only: stop this machine after this many finished runs (0 = no limit, as before)
 const setupGate = makeSetupGate({ gapS: SETUP_GAP_S });
 const SHARE = Number(opt("share", 0.5));
@@ -231,8 +233,9 @@ async function worker(n) {
     const { g, size, ua, band, k: ck } = c;
     const id = nextId();
     inFlight[g] = (inFlight[g] || 0) + 1; inFlight[ck] = (inFlight[ck] || 0) + 1; reserved[g] = (reserved[g] || 0) + size + EXTRA_SEATS;
+    const tPicked = Date.now(); await burstBarrier();
     const t0 = Date.now();
-    say(`start ${g} ${size} players ${ua} ${band} id ${id}`);
+    say(`start ${g} ${size} players ${ua} ${band} id ${id}` + (BURST ? ` (picked, waited ${t0 - tPicked} ms at the burst barrier)` : ""));
     const r = await spawnRun(g, size, id, ua, orgEmailFor(g, n));
     inFlight[g]--; inFlight[ck]--; reserved[g] -= size + EXTRA_SEATS;
     // Gate refused (BOSS, 5 Nov): skip THIS game for 5 minutes so the worker can run other games; never block the whole runner on one game.

@@ -105,6 +105,7 @@ jobs:
           T99_MACHINE_STAGGER_S: ${{ inputs.burst == '1' && '0' || '15' }}
           T99_SETUP_GAP_S: ${{ inputs.burst == '1' && '0' || '20' }}
           T99_MAX_RUNS: ${{ inputs.max_runs }}
+          T99_BURST: ${{ inputs.burst }}
           T99_CLOUD_PAUSE_MIN: "10"
         run: |
           H=$(( HOURS > 5 ? 5 : HOURS ))
