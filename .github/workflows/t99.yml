@@ -26,6 +26,9 @@ on:
       org_spread:
         description: "1 = spread organizer test sign-ins over demo1/2/3 (ignored for tambola); 0 = demo1 only (BOSS 9 Nov: Luck and Tic Tac Toe, at most 3 games in flight because a site keeps 3 organizer keys per account)"
         default: "1"
+      max_runs:
+        description: "smoke only: stop after this many finished games on each machine (0 = no limit)"
+        default: "0"
       team_rate:
         description: "share of runs that also exercise the host/co-host step (shared 5-Host limit)"
         default: "0.03"
@@ -98,6 +101,7 @@ jobs:
           T99_STAGGER_S: "25"
           T99_MACHINE_STAGGER_S: "15"
           T99_SETUP_GAP_S: "20"
+          T99_MAX_RUNS: ${{ inputs.max_runs }}
           T99_CLOUD_PAUSE_MIN: "10"
         run: |
           H=$(( HOURS > 5 ? 5 : HOURS ))
