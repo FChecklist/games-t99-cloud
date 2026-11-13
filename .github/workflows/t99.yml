@@ -26,6 +26,9 @@ on:
       org_spread:
         description: "1 = spread organizer test sign-ins over demo1/2/3 (ignored for tambola); 0 = demo1 only (BOSS 9 Nov: Luck and Tic Tac Toe, at most 3 games in flight because a site keeps 3 organizer keys per account)"
         default: "1"
+      burst:
+        description: "burst test only: 1 = every game starts its set-up in the same second (no stagger, no set-up gap), like 8 Nov; 0 = normal staggered sampling"
+        default: "0"
       max_runs:
         description: "smoke only: stop after this many finished games on each machine (0 = no limit)"
         default: "0"
@@ -98,9 +101,9 @@ jobs:
           T99_TEAM_RATE: ${{ inputs.team_rate }}
           T99_SIZES: ${{ inputs.sizes }}
           T99_ORG_SPREAD: ${{ inputs.org_spread }}
-          T99_STAGGER_S: "25"
-          T99_MACHINE_STAGGER_S: "15"
-          T99_SETUP_GAP_S: "20"
+          T99_STAGGER_S: ${{ inputs.burst == '1' && '0' || '25' }}
+          T99_MACHINE_STAGGER_S: ${{ inputs.burst == '1' && '0' || '15' }}
+          T99_SETUP_GAP_S: ${{ inputs.burst == '1' && '0' || '20' }}
           T99_MAX_RUNS: ${{ inputs.max_runs }}
           T99_CLOUD_PAUSE_MIN: "10"
         run: |
