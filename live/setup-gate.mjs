@@ -13,6 +13,6 @@ export function makeSetupGate({ gapS = 0, busyCoolS = 60, now = () => Date.now()
       return at - n;
     },
     /** Tell the gate what the last game said; a busy / 503 answer holds every new start for busyCoolS seconds. */
-    sawAnswer(why) { if (/site busy|503|overload/i.test(String(why || ""))) { busyUntil = Math.max(busyUntil, now() + busyCoolS * 1000); return true; } return false; },
+    sawAnswer(why) { if (/site busy|It is busy right now|very busy|-> 503\b|overloaded/i.test(String(why || ""))) { busyUntil = Math.max(busyUntil, now() + busyCoolS * 1000); return true; } return false; },
   };
 }

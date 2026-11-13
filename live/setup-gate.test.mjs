@@ -23,6 +23,11 @@ describe("setup gate", () => {
     c.adv(25_000); expect(g.sawAnswer("sign-in 503 [site busy] The doors are very busy")).toBe(true); const t1 = c.now(); const w2 = await g.slot();
     expect(w2).toBeGreaterThanOrEqual(60_000); expect(c.now() - t1).toBeGreaterThanOrEqual(60_000);
   });
+  test("only real busy answers count: a stray 503 inside other text does not close the gate", async () => {
+    const c = clock(); const g = makeSetupGate({ gapS: 20, now: c.now, sleep: c.sleep, rand: () => 0.5 });
+    for (const why of ["join: 5 of 503 seats", "player 1503 joined", "order 5031 paid"]) expect(g.sawAnswer(why)).toBe(false);
+    for (const why of ["x GET /y -> 503 Something went wrong", "doors are very busy", "D1 DB is overloaded"]) expect(g.sawAnswer(why)).toBe(true);
+  });
   test("gate off (no gap): no waiting at all, like before", async () => {
     const c = clock(); const g = makeSetupGate({ gapS: 0, now: c.now, sleep: c.sleep }); for (let i = 0; i < 5; i++) expect(await g.slot()).toBe(0); expect(c.now()).toBe(1_000_000);
   });

@@ -219,13 +219,15 @@ async function worker(n) {
     { const mi = Number(String(MACHINE).replace(/\D/g, "")) || 1; const off = Math.max(0, mi - 1) * MACHINE_STAGGER_S * 1000 + (n > 1 ? (n - 1) * STAGGER_S * 1000 : 0); if ((STAGGER_S > 0 || MACHINE_STAGGER_S > 0) && off > 0) await sleep(off + Math.random() * 5000); }
     while (true) {
     if (stopped()) { say(`worker ${n}: STOP file, exiting`); return; }
+    // 13 Nov audit: wait for the set-up slot BEFORE choosing a cell, so a PAUSE / STOP file or a full cell written during the wait is honoured and waiting workers never pick on stale counters.
+    await setupGate.slot();
+    if (stopped()) { say(`worker ${n}: STOP file, exiting`); return; }
     const c = pick();
     if (!c) {
       if (allDone()) { say(`worker ${n}: all cells at target`); return; }
       await sleep(60000); continue;
     }
     const { g, size, ua, band, k: ck } = c;
-    await setupGate.slot();
     const id = nextId();
     inFlight[g] = (inFlight[g] || 0) + 1; inFlight[ck] = (inFlight[ck] || 0) + 1; reserved[g] = (reserved[g] || 0) + size + EXTRA_SEATS;
     const t0 = Date.now();
