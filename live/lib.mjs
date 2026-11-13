@@ -175,7 +175,7 @@ export function makeCtx({ game, site, runId, kind = "game", dry = false, mock = 
     if (as === "org") key = sess.token || (path === "/api/auth/verify" ? null : await signIn());
     else if (as === "host") key = ctx.keys.host; else if (as === "cohost") key = ctx.keys.cohost; else if (as === "owner") key = ctx.ownerKey;
     const headers = { "content-type": "application/json", "user-agent": "smoke10m-live/1 (" + (process.env.T99_UA === "mobile" ? "Linux; Android 14; ONEPLUS; Mobile Safari; " : process.env.T99_UA === "desktop" ? "Windows NT 10.0; Win64; Desktop; " : "") + "owner-approved test; marked SMK10M)", "x-smoke10m": String(runId).slice(0, 40), ...(key ? { "x-organizer": key } : {}), ...(RUNNER_KEY ? { "x-runner-key": RUNNER_KEY } : {}), ...(opts.headers || {}) };
-    const url = ctx.site + path; const maxTries = opts.tries ?? 3; let last = null, retried = 0; let relogged = false;
+    const url = ctx.site + path; const maxTries = opts.tries ?? 3; let last = null, retried = 0; let relogged = false, reloginN = 0;
     for (let attempt = 1; attempt <= maxTries + 1; attempt++) {
       if (attempt > 1) { ctx.stats.retries++; retried++; await sleep(Math.min(20000, 1500 * 2 ** (attempt - 2)) + Math.random() * 800); checkStop(); }
       await pace(ctx.site, ctx.rps); budgetAdd(method, path);
@@ -189,7 +189,7 @@ export function makeCtx({ game, site, runId, kind = "game", dry = false, mock = 
       if (s === 429) ctx.stats.s429++; if (s >= 500) ctx.stats.s5xx++;
       if ((s === 429 || s === 502 || s === 503 || s === 504) && attempt <= maxTries && !opts.noRetry) continue;
       // 4 Nov: the organizer's test sign-in token stops working after a while ('Not allowed' on the organizer's own routes, seen in ~45 of 104 Tambola games late in a long run): sign in again once and repeat the call.
-      if (as === "org" && (s === 401 || s === 403) && /Not allowed|sign in/i.test(String(j?.error || "")) && !relogged && path !== "/api/auth/verify") { relogged = true; try { sess.token = null; headers["x-organizer"] = await signIn(true); ctx.stats.relogins = (ctx.stats.relogins || 0) + 1; attempt--; continue; } catch { /* keep the original answer */ } }
+      if (as === "org" && (s === 401 || s === 403) && /Not allowed|sign in/i.test(String(j?.error || "")) && (!relogged || (process.env.T99_BURST === "1" && reloginN < 6)) && path !== "/api/auth/verify") { relogged = true; reloginN++; if (process.env.T99_BURST === "1" && reloginN > 1) await sleep(300 + Math.floor(Math.random() * 2200)); try { sess.token = null; headers["x-organizer"] = await signIn(true); ctx.stats.relogins = (ctx.stats.relogins || 0) + 1; attempt--; continue; } catch { /* keep the original answer */ } }
       break;
     }
     const { s, j, ms, text, err } = last;
