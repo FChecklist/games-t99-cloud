@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { makeSetupGate } from "./setup-gate.mjs";
 // TARGET-99 unattended runner (one per machine: partner laptop, phone). Run with bun:
 //   bun live/t99.mjs --machine partner --workers 3 --share 0.67      (phone: --machine phone --workers 1 --share 0.33)
 // Plan: TARGET-99-REAL-GAME-REAL-WEBSITE-PLAN.md. 6 game types, 299 failure-free runs each on ONE frozen version, sizes 20/100/250 = 20/40/40 %.
@@ -23,6 +24,8 @@ const WORKERS = Number(opt("workers", 1));
 const STAGGER_S = Number(process.env.T99_STAGGER_S || 0);
 const MACHINE_STAGGER_S = Number(process.env.T99_MACHINE_STAGGER_S || 0);
 const CLOUD_PAUSE_MIN = Number(process.env.T99_CLOUD_PAUSE_MIN || 0);
+const SETUP_GAP_S = Number(process.env.T99_SETUP_GAP_S || 0); // 13 Nov: one game set-up per machine per this many seconds (0 = off, as before)
+const setupGate = makeSetupGate({ gapS: SETUP_GAP_S });
 const SHARE = Number(opt("share", 0.5));
 const TOTAL = Number(opt("total", 299)); // legacy, only used by the old plan print
 const DRY = argv.includes("--dry-plan");
@@ -222,6 +225,7 @@ async function worker(n) {
       await sleep(60000); continue;
     }
     const { g, size, ua, band, k: ck } = c;
+    await setupGate.slot();
     const id = nextId();
     inFlight[g] = (inFlight[g] || 0) + 1; inFlight[ck] = (inFlight[ck] || 0) + 1; reserved[g] = (reserved[g] || 0) + size + EXTRA_SEATS;
     const t0 = Date.now();
@@ -237,6 +241,7 @@ async function worker(n) {
     const rejoins = (j?.rows || []).filter((x) => /come-back-same-phone/.test(String(x.step)) && x.expected !== false).reduce((a, x) => a + (x.n || 1), 0);
     const line = { at: new Date().toISOString(), machine: MACHINE, game: g, size, ua, band, rejoins, id, org: orgE ? orgE.split("@")[0] : "", kind: v.kind, why: v.why, outcome: j?.outcome ?? "no-file", joined: j?.joined ?? 0, ended: !!j?.ended, secs: Math.round((Date.now() - t0) / 1000), version: j?.version?.version ?? j?.commit ?? "?", commit: j?.version?.commit ?? j?.commit ?? "?", unexpected: (j?.unexpected || []).length, answers: answerCounts(j?.unexpected), ...eidFields(j), netBlips: v.blips ?? 0, requests: j?.stats?.calls ?? 0, exit: r.code };
     appendFileSync(LEDGER, JSON.stringify(line) + "\n");
+    if (setupGate.sawAnswer(v.why)) say(`set-up gate: busy answer seen, no new game starts on this machine for 60 s`);
     say(`${g} ${size} id ${id}: ${v.kind.toUpperCase()} ${v.why} (${line.joined} joined, ${line.secs}s)`);
     if (v.kind === "fail") { if (CLOUD_PAUSE_MIN > 0) { writeFileSync(join(T, `PAUSE-${g}`), String(Date.now() + CLOUD_PAUSE_MIN * 60000)); say(`PAUSE ${g} ${CLOUD_PAUSE_MIN} min after FAIL (cloud: nobody can delete a HALT file; the failure stays counted in the ledger and is classified at harvest)`); } else { writeFileSync(join(T, `HALT-${g}`), `${line.at} ${MACHINE} ${g} ${size} id ${id}: ${v.why}\nDelete this file only after the failure is classified (defect = fix + release + restart the count; test fault = fix the runner).\n`); say(`HALT ${g}`); } }
     if (v.kind === "env-signin") { writeFileSync(join(T, `PAUSE-${g}`), String(Date.now() + 6 * 3600000)); say(`${g}: test sign-in refused: paused 6 hours (needs TEST mode: boss decision)`); }
